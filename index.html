@@ -408,6 +408,114 @@
     .detail-row .row-icon { font-size: 16px; width: 24px; text-align: center; flex-shrink: 0; }
     .detail-row a { color: var(--accent); text-decoration: none; }
 
+    /* ── Place vibe description ─────────────────────────────── */
+    #detail-vibe {
+      margin: 12px 0 4px;
+      padding: 12px 14px;
+      background: var(--surface2);
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    #detail-vibe strong { color: var(--text); }
+
+    /* ── Comments section ────────────────────────────────────── */
+    #detail-comments {
+      margin-top: 16px;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+    .comments-heading {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .comment-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .comment-item:last-of-type { border-bottom: none; }
+    .comment-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .comment-author {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .comment-date {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .comment-text {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    .comment-delete-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .comment-delete-btn:active { color: #E53935; }
+    .no-comments-msg {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      padding: 10px 0 14px;
+    }
+    .comment-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .comment-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      padding: 10px 12px;
+      resize: none;
+      outline: none;
+      min-height: 72px;
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+    }
+    .comment-input:focus { border-color: var(--accent); }
+    .comment-input::placeholder { color: var(--muted); }
+    .comment-submit-btn {
+      align-self: flex-end;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s;
+    }
+    .comment-submit-btn:active { opacity: 0.8; }
+
     /* ── Detail action buttons ───────────────────────────────── */
     #detail-actions {
       display: flex;
@@ -920,7 +1028,9 @@
         </div>
       </div>
       <div id="detail-rating-block"></div>
+      <div id="detail-vibe"></div>
       <div id="detail-rows"></div>
+      <div id="detail-comments"></div>
       <div id="detail-actions">
         <button id="detail-map-btn" class="detail-action-btn" onclick="openInMaps()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -1672,6 +1782,13 @@ function openDetail(place, cat) {
   if (!rows) rows = detailRow('ℹ️', 'No additional details available.');
 
   document.getElementById('detail-rows').innerHTML = rows;
+
+  // Vibe description and comments
+  const vibeEl = document.getElementById('detail-vibe');
+  vibeEl.textContent = buildVibeDescription(place, cat, rating);
+
+  renderComments(place.id);
+
   document.getElementById('detail').classList.add('open');
 }
 
@@ -2336,6 +2453,251 @@ function buildMapsUrl(origin, dest, mode) {
  */
 function isIOS() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+// ════════════════════════════════════════════════════════════
+// VIBE DESCRIPTION
+// Generates a short natural-language summary of a place from
+// its OSM tags. Falls back to generic phrases when tags are
+// sparse (common for OSM data). Category-specific phrasing
+// is driven by the cat.id so the text reads naturally for
+// restaurants, cafés, hotels, etc.
+// ════════════════════════════════════════════════════════════
+
+/**
+ * Build a 1–3 sentence "what's it like?" blurb from OSM tags.
+ * The result is plain text (safe to set as textContent).
+ * @param {object} place — enriched Overpass element
+ * @param {object} cat — active category from CATS
+ * @param {{ score: number, count: number }} rating
+ * @returns {string}
+ */
+function buildVibeDescription(place, cat, rating) {
+  const tags = place.tags || {};
+
+  // ── Shared tag reads ──────────────────────────────────────
+  const name      = tags.name || cat.label.slice(0, -1);
+  const cuisine   = tags.cuisine?.replace(/_/g, ' ');
+  const diet      = tags['diet:vegan'] === 'yes' ? 'vegan' : tags['diet:vegetarian'] === 'yes' ? 'vegetarian' : null;
+  const priceTag  = tags['price_level'] || tags['charge'];
+  const outdoor   = tags['outdoor_seating'] === 'yes';
+  const takeaway  = tags['takeaway'] === 'yes' || tags['takeaway'] === 'only';
+  const wifi      = tags['internet_access'] === 'wlan' || tags['wifi'] === 'yes';
+  const stars     = tags['stars']; // hotel star rating
+  const rooms     = tags['rooms'];
+  const capacity  = tags['capacity'];
+  const drinkType = tags['drink:beer'] === 'yes' ? 'craft beers' : tags['drink:cocktails'] === 'yes' ? 'cocktails' : null;
+  const sport     = tags['sport'];
+  const hours     = tags['opening_hours'];
+  const openNow   = isOpenNow(hours);
+
+  // ── Vibe adjective from synthetic rating ─────────────────
+  const vibeWord = rating.score >= 4.5 ? 'highly rated'
+                 : rating.score >= 4.0 ? 'well-regarded'
+                 : rating.score >= 3.5 ? 'solid'
+                 : 'modestly rated';
+
+  const sentences = [];
+
+  // ── Category-specific opening sentence ───────────────────
+  if (cat.id === 'restaurant') {
+    let s = `A ${vibeWord} restaurant`;
+    if (cuisine) s += ` specialising in ${cuisine}`;
+    if (diet)    s += `, with ${diet} options`;
+    s += '.';
+    sentences.push(s);
+    if (outdoor) sentences.push('Outdoor seating is available.');
+    if (takeaway) sentences.push('Takeaway orders are welcome.');
+
+  } else if (cat.id === 'cafe') {
+    let s = `A ${vibeWord} café`;
+    if (cuisine) s += ` with a focus on ${cuisine}`;
+    s += '.';
+    sentences.push(s);
+    if (wifi)    sentences.push('Free Wi-Fi on offer — great for working.');
+    if (outdoor) sentences.push('Grab a seat outside when the weather's nice.');
+
+  } else if (cat.id === 'bar') {
+    let s = `A ${vibeWord} bar`;
+    if (drinkType) s += ` known for its ${drinkType}`;
+    s += '.';
+    sentences.push(s);
+    if (outdoor) sentences.push('Outdoor seating available.');
+
+  } else if (cat.id === 'fast_food') {
+    sentences.push(`A ${vibeWord} quick-service spot${cuisine ? ' serving ' + cuisine : ''}.`);
+    if (takeaway) sentences.push('Takeaway-friendly.');
+
+  } else if (cat.id === 'hotel') {
+    let s = `A ${vibeWord} hotel`;
+    if (stars)   s += ` (${stars}-star)`;
+    if (rooms)   s += ` with ${rooms} rooms`;
+    s += '.';
+    sentences.push(s);
+
+  } else if (cat.id === 'gym') {
+    let s = `A ${vibeWord} fitness centre`;
+    if (sport)   s += ` offering ${sport.replace(/_/g, ' ')}`;
+    if (capacity) s += ` with capacity for ${capacity}`;
+    s += '.';
+    sentences.push(s);
+
+  } else if (cat.id === 'park') {
+    sentences.push(`A ${vibeWord} green space — ideal for a stroll or some fresh air.`);
+
+  } else if (cat.id === 'museum') {
+    sentences.push(`A ${vibeWord} museum worth a visit.`);
+
+  } else {
+    sentences.push(`A ${vibeWord} ${cat.label.slice(0, -1).toLowerCase()}.`);
+  }
+
+  // ── Generic supplementary sentences ──────────────────────
+  if (priceTag) {
+    sentences.push(`Pricing: ${priceTag}.`);
+  }
+
+  if (openNow === true)  sentences.push('Currently open.');
+  if (openNow === false) sentences.push('Currently closed — check hours before visiting.');
+
+  if (sentences.length < 2) {
+    // Pad with a rating-quality sentence when we have little else to say
+    sentences.push(`Rated ${rating.score} by ${rating.count} visitors.`);
+  }
+
+  return sentences.join(' ');
+}
+
+/**
+ * Determine whether the place is currently open given an OSM opening_hours string.
+ * Returns true (open), false (closed), or null (can't determine).
+ * Only handles the simple "Mo-Su HH:MM-HH:MM" pattern — a full parser is out of scope.
+ * @param {string|undefined} hoursStr
+ * @returns {boolean|null}
+ */
+function isOpenNow(hoursStr) {
+  if (!hoursStr) return null;
+  if (hoursStr.trim() === '24/7') return true;
+  // Extract first HH:MM-HH:MM time range
+  const m = hoursStr.match(/(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const openMin  = parseInt(m[1]) * 60 + parseInt(m[2]);
+  const closeMin = parseInt(m[3]) * 60 + parseInt(m[4]);
+  // Handle overnight spans (e.g. 22:00-02:00)
+  if (closeMin < openMin) return nowMin >= openMin || nowMin < closeMin;
+  return nowMin >= openMin && nowMin < closeMin;
+}
+
+// ════════════════════════════════════════════════════════════
+// COMMENTS
+// User comments are stored in localStorage keyed by OSM id.
+// Each entry is an array of { author, text, ts } objects.
+// "You" is the hardcoded author name for this single-user app.
+// ════════════════════════════════════════════════════════════
+
+const COMMENTS_KEY = 'pindrop_comments';
+
+/** Load the full comments map from localStorage. */
+function loadAllComments() {
+  try { return JSON.parse(localStorage.getItem(COMMENTS_KEY) || '{}'); }
+  catch { return {}; }
+}
+
+/**
+ * Get the comment list for one place.
+ * @param {number} osmId
+ * @returns {Array<{author:string, text:string, ts:number}>}
+ */
+function getComments(osmId) {
+  return loadAllComments()[osmId] || [];
+}
+
+/**
+ * Persist a new comment for a place.
+ * @param {number} osmId
+ * @param {string} text
+ */
+function addComment(osmId, text) {
+  const all = loadAllComments();
+  if (!all[osmId]) all[osmId] = [];
+  all[osmId].push({ author: 'You', text: text.trim(), ts: Date.now() });
+  localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
+}
+
+/**
+ * Delete a comment by its index within the place's comment list.
+ * @param {number} osmId
+ * @param {number} idx
+ */
+function deleteComment(osmId, idx) {
+  const all = loadAllComments();
+  if (!all[osmId]) return;
+  all[osmId].splice(idx, 1);
+  localStorage.setItem(COMMENTS_KEY, JSON.stringify(all));
+}
+
+/**
+ * Render the comments section (list + add-comment form) into #detail-comments.
+ * Called once on detail open and again after each add/delete action.
+ * @param {number} osmId
+ */
+function renderComments(osmId) {
+  const container = document.getElementById('detail-comments');
+  const comments  = getComments(osmId);
+
+  let listHtml = '';
+  if (comments.length === 0) {
+    listHtml = `<div class="no-comments-msg">No comments yet. Be the first!</div>`;
+  } else {
+    comments.forEach((c, i) => {
+      const date = new Date(c.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      listHtml += `
+        <div class="comment-item">
+          <div class="comment-meta">
+            <span class="comment-author">${esc(c.author)}</span>
+            <span style="display:flex;align-items:center;gap:6px">
+              <span class="comment-date">${date}</span>
+              <button class="comment-delete-btn" onclick="handleDeleteComment(${osmId},${i})">✕</button>
+            </span>
+          </div>
+          <div class="comment-text">${esc(c.text)}</div>
+        </div>`;
+    });
+  }
+
+  container.innerHTML = `
+    <div class="comments-heading">Comments</div>
+    ${listHtml}
+    <div class="comment-form">
+      <textarea class="comment-input" id="comment-input-${osmId}" placeholder="Share your experience…" rows="3"></textarea>
+      <button class="comment-submit-btn" onclick="handleAddComment(${osmId})">Post</button>
+    </div>
+  `;
+}
+
+/**
+ * Handle the "Post" button click: validate, save, and re-render comments.
+ * @param {number} osmId
+ */
+function handleAddComment(osmId) {
+  const input = document.getElementById(`comment-input-${osmId}`);
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) { input.focus(); return; }
+  addComment(osmId, text);
+  renderComments(osmId);
+}
+
+/**
+ * Handle the delete (✕) button on a comment.
+ * @param {number} osmId
+ * @param {number} idx
+ */
+function handleDeleteComment(osmId, idx) {
+  deleteComment(osmId, idx);
+  renderComments(osmId);
 }
 
 // ════════════════════════════════════════════════════════════
