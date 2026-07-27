@@ -1,0 +1,1235 @@
+/* ── Reset & base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f0f14;
+      --surface:   #1a1a24;
+      --surface2:  #23232f;
+      --surface3:  #2c2c3c;
+      --border:    rgba(255,255,255,0.08);
+      --text:      #f0f0f5;
+      --muted:     rgba(240,240,245,0.45);
+      --accent:    #7c6af7;
+      --accent-lo: rgba(124,106,247,0.15);
+      --radius:    14px;
+      --sheet-h:   52vh;
+      --safe-b:    env(safe-area-inset-bottom, 0px);
+      --safe-t:    env(safe-area-inset-top, 44px);
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      touch-action: none;
+    }
+
+    /* ── Views ───────────────────────────────────────────────── */
+    .view { position: fixed; inset: 0; display: none; }
+    .view.active { display: block; }
+
+    /* ── Map ─────────────────────────────────────────────────── */
+    #map {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .leaflet-tile { filter: brightness(0.82) saturate(0.7) hue-rotate(190deg); }
+    .leaflet-container { background: #0f0f14; }
+
+    /* ── Top bar ─────────────────────────────────────────────── */
+    #topbar {
+      position: fixed;
+      top: var(--safe-t);
+      left: 0; right: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      pointer-events: none;
+    }
+
+    .pill {
+      pointer-events: all;
+      backdrop-filter: blur(20px) saturate(1.6);
+      -webkit-backdrop-filter: blur(20px) saturate(1.6);
+      background: rgba(26,26,36,0.88);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 15px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .pill:active { background: rgba(40,40,56,0.95); }
+    .pill svg { flex-shrink: 0; }
+
+    #hint-pill { flex: 1; justify-content: center; color: var(--muted); }
+    #hint-pill.hidden { display: none; }
+
+    #loc-btn { padding: 9px 13px; }
+    #clear-btn { padding: 9px 13px; display: none; }
+    #clear-btn.show { display: flex; }
+
+    /* ── Radius badge ────────────────────────────────────────── */
+    #radius-pill { position: relative; }
+    #radius-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      backdrop-filter: blur(24px) saturate(1.6);
+      -webkit-backdrop-filter: blur(24px) saturate(1.6);
+      background: rgba(26,26,36,0.96);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      min-width: 160px;
+      z-index: 20;
+    }
+    #radius-menu.open { display: block; }
+    .radius-opt {
+      padding: 13px 18px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s;
+    }
+    .radius-opt:last-child { border-bottom: none; }
+    .radius-opt:active { background: var(--surface2); }
+    .radius-opt.active { color: var(--accent); }
+    .radius-opt.active::after { content: "✓"; font-weight: 700; }
+
+    /* ── Bottom sheet ────────────────────────────────────────── */
+    #sheet {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 10;
+      height: var(--sheet-h);
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-radius: 20px 20px 0 0;
+      border-top: 1px solid var(--border);
+      transform: translateY(calc(var(--sheet-h) - 80px - var(--safe-b)));
+      transition: transform 0.38s cubic-bezier(0.32,0.72,0,1);
+      will-change: transform;
+      touch-action: none;
+    }
+    #sheet.expanded { transform: translateY(0); }
+
+    #drag-handle {
+      width: 36px; height: 4px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 2px;
+      margin: 10px auto 0;
+      flex-shrink: 0;
+    }
+
+    #cat-row {
+      display: flex;
+      gap: 8px;
+      padding: 10px 14px 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      flex-shrink: 0;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    #cat-row::-webkit-scrollbar { display: none; }
+
+    .cat-chip {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      border-radius: 100px;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      background: var(--surface2);
+      border: 1.5px solid transparent;
+      color: var(--muted);
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.18s;
+    }
+    .cat-chip.active {
+      color: #fff;
+      border-color: var(--chip-color, var(--accent));
+      background: color-mix(in srgb, var(--chip-color, var(--accent)) 18%, transparent);
+    }
+    .cat-icon { font-size: 14px; }
+
+    #results-header {
+      padding: 4px 16px 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    #results {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 0 12px;
+      padding-bottom: calc(12px + var(--safe-b));
+    }
+    #results::-webkit-scrollbar { display: none; }
+
+    .state-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      height: 120px;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+      padding: 0 24px;
+    }
+    .state-card .icon { font-size: 32px; opacity: 0.5; }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 2.5px solid rgba(124,106,247,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Place card ──────────────────────────────────────────── */
+    .place-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      background: var(--surface2);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.12s;
+      border: 1px solid transparent;
+    }
+    .place-card:active { background: var(--surface3); }
+
+    .place-icon-wrap {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .place-info { flex: 1; min-width: 0; }
+    .place-name {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .place-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    /* Rating stars inline */
+    .place-rating {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: 4px;
+    }
+    .stars {
+      display: flex;
+      gap: 1px;
+    }
+    .star {
+      font-size: 10px;
+      line-height: 1;
+    }
+    .rating-val {
+      font-size: 11px;
+      font-weight: 700;
+      color: #f5c842;
+    }
+    .rating-count {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .place-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .place-dist {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .place-directions-btn {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-lo);
+      border: none;
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+    }
+    .place-directions-btn:active { opacity: 0.7; }
+
+    /* ── Detail panel ────────────────────────────────────────── */
+    #detail {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: flex-end;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    #detail.open { display: flex; }
+
+    #detail-card {
+      width: 100%;
+      background: var(--surface);
+      border-radius: 24px 24px 0 0;
+      border-top: 1px solid var(--border);
+      padding: 16px 20px;
+      padding-bottom: calc(24px + var(--safe-b));
+      max-height: 75vh;
+      overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform 0.36s cubic-bezier(0.32,0.72,0,1);
+    }
+    #detail.open #detail-card { transform: translateY(0); }
+
+    #detail-handle {
+      width: 36px; height: 4px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+
+    #detail-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    #detail-icon-wrap {
+      width: 54px; height: 54px;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    #detail-name { font-size: 17px; font-weight: 700; line-height: 1.3; }
+    #detail-cat  { font-size: 12px; font-weight: 600; margin-top: 3px; }
+
+    /* Detail rating block */
+    #detail-rating-block {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+    .detail-rating-score {
+      font-size: 32px;
+      font-weight: 800;
+      color: #f5c842;
+      line-height: 1;
+    }
+    .detail-rating-right { display: flex; flex-direction: column; gap: 4px; }
+    .detail-stars-row { display: flex; gap: 2px; }
+    .detail-star { font-size: 15px; }
+    .detail-rating-count { font-size: 12px; color: var(--muted); }
+
+    .detail-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-row .row-icon { font-size: 16px; width: 24px; text-align: center; flex-shrink: 0; }
+    .detail-row a { color: var(--accent); text-decoration: none; }
+
+    /* ── Detail action buttons ───────────────────────────────── */
+    #detail-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .detail-action-btn {
+      flex: 1;
+      padding: 14px;
+      border-radius: 14px;
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      -webkit-tap-highlight-color: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: opacity 0.15s;
+    }
+    .detail-action-btn:active { opacity: 0.8; }
+    #detail-map-btn {
+      background: var(--accent);
+      color: #fff;
+    }
+    #detail-directions-btn {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Custom pin marker ───────────────────────────────────── */
+    .dropped-pin {
+      width: 0; height: 0;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
+      border-top: 24px solid var(--accent);
+      position: relative;
+      filter: drop-shadow(0 4px 8px rgba(124,106,247,0.5));
+    }
+    .dropped-pin::before {
+      content: '';
+      position: absolute;
+      width: 12px; height: 12px;
+      background: #fff;
+      border-radius: 50%;
+      top: -20px;
+      left: -6px;
+    }
+
+    .poi-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      border: 2px solid rgba(255,255,255,0.3);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    .leaflet-control-attribution {
+      background: rgba(0,0,0,0.5) !important;
+      color: rgba(255,255,255,0.4) !important;
+      font-size: 9px !important;
+    }
+    .leaflet-control-attribution a { color: rgba(255,255,255,0.5) !important; }
+
+    /* ════════════════════════════════════════════════════════════
+       TRANSPORT VIEW
+    ════════════════════════════════════════════════════════════ */
+    #transport-view {
+      background: var(--bg);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      z-index: 40;
+    }
+
+    #transport-header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      backdrop-filter: blur(20px) saturate(1.6);
+      -webkit-backdrop-filter: blur(20px) saturate(1.6);
+      background: rgba(15,15,20,0.9);
+      border-bottom: 1px solid var(--border);
+      padding: calc(var(--safe-t) + 4px) 16px 14px;
+    }
+
+    .transport-back-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    #transport-back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      padding: 4px 0;
+    }
+
+    .transport-route-summary {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .route-endpoint {
+      flex: 1;
+      min-width: 0;
+    }
+    .route-endpoint-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+    .route-endpoint-name {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .route-arrow {
+      color: var(--muted);
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    /* Origin selector */
+    #origin-selector {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    #origin-selector::-webkit-scrollbar { display: none; }
+
+    /* ── Trip planner search fields ─────────────────────────── */
+    .trip-field-wrap {
+      position: relative;
+    }
+    .trip-field-label {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    .trip-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      transition: border-color 0.15s;
+    }
+    .trip-input-row:focus-within {
+      border-color: var(--accent);
+    }
+    .trip-field-icon { font-size: 12px; flex-shrink: 0; }
+    .trip-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 500;
+      min-width: 0;
+      caret-color: var(--accent);
+    }
+    .trip-input::placeholder { color: var(--muted); font-weight: 400; }
+    .trip-input-clear {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 0 2px;
+      display: none;
+      -webkit-tap-highlight-color: transparent;
+      flex-shrink: 0;
+    }
+    .trip-input-clear.show { display: block; }
+
+    .trip-suggestions {
+      position: absolute;
+      left: 0; right: 0;
+      top: calc(100% + 4px);
+      background: rgba(26,26,36,0.98);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      z-index: 50;
+      display: none;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .trip-suggestions.open { display: block; }
+    .trip-suggestion {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 13px;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s;
+    }
+    .trip-suggestion:last-child { border-bottom: none; }
+    .trip-suggestion:active { background: var(--surface2); }
+    .trip-suggestion-icon { font-size: 16px; width: 22px; text-align: center; flex-shrink: 0; }
+    .trip-suggestion-main { font-weight: 600; }
+    .trip-suggestion-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+    /* trip planner nav button on map */
+    #trip-planner-btn {
+      position: fixed;
+      bottom: calc(80px + var(--safe-b) + 12px);
+      right: 14px;
+      z-index: 10;
+      backdrop-filter: blur(20px) saturate(1.6);
+      -webkit-backdrop-filter: blur(20px) saturate(1.6);
+      background: rgba(26,26,36,0.92);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    #trip-planner-btn:active { opacity: 0.8; }
+
+    /* ── Trip planner search fields ─────────────────────────── */
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 100px;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      background: var(--surface2);
+      border: 1.5px solid transparent;
+      color: var(--muted);
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.18s;
+      white-space: nowrap;
+    }
+    .origin-chip.active {
+      color: #fff;
+      border-color: var(--accent);
+      background: var(--accent-lo);
+    }
+
+    /* Transport mode tabs */
+    #mode-tabs {
+      display: flex;
+      gap: 0;
+      padding: 14px 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      border-bottom: 1px solid var(--border);
+    }
+    #mode-tabs::-webkit-scrollbar { display: none; }
+
+    .mode-tab {
+      flex: 1;
+      min-width: 64px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 9px 6px;
+      border-radius: 12px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.18s;
+      border: 1.5px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .mode-tab.active {
+      background: var(--accent-lo);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .mode-tab-icon { font-size: 20px; line-height: 1; }
+
+    /* Transport cards */
+    #transport-cards {
+      padding: 16px 16px;
+      padding-bottom: calc(24px + var(--safe-b));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .transport-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .transport-card.best {
+      border-color: var(--accent);
+    }
+
+    .transport-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+    }
+    .transport-mode-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .transport-card-info { flex: 1; }
+    .transport-card-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .transport-card-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .transport-card-time {
+      text-align: right;
+    }
+    .transport-time-val {
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .transport-time-unit {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* Best badge */
+    .best-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    /* Steps breakdown */
+    .transport-steps {
+      border-top: 1px solid var(--border);
+      padding: 0 16px;
+    }
+    .transport-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .transport-step:last-child { border-bottom: none; }
+    .step-icon { font-size: 15px; width: 22px; text-align: center; flex-shrink: 0; margin-top: 1px; }
+    .step-text { flex: 1; color: var(--muted); line-height: 1.4; }
+    .step-text strong { color: var(--text); font-weight: 600; }
+    .step-dist { font-size: 11px; font-weight: 600; color: var(--muted); flex-shrink: 0; margin-top: 2px; }
+
+    /* Open in app button */
+    .transport-open-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: calc(100% - 32px);
+      margin: 0 16px 14px;
+      padding: 13px;
+      border-radius: 12px;
+      border: none;
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s;
+    }
+    .transport-open-btn:active { background: var(--surface3); }
+
+    /* Loading/error states for transport */
+    .transport-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 60px 24px;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+    }
+    .transport-state .icon { font-size: 40px; opacity: 0.5; }
+
+    /* ── Flight controls (date + cabin class) ───────────────── */
+    .flight-controls {
+      border-top: 1px solid var(--border);
+      padding: 12px 16px 4px;
+    }
+    .flight-date-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 12px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color 0.15s;
+    }
+    .flight-date-field:active { border-color: var(--accent); }
+    .flight-field-icon { font-size: 14px; flex-shrink: 0; }
+    .flight-date-label {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .flight-date-caret { font-size: 9px; color: var(--muted); }
+    .flight-date-label.placeholder { color: var(--muted); font-weight: 500; }
+
+    .flight-class-tabs-wrap { padding: 0 16px 10px; }
+
+    .flight-date-prompt {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 26px 20px 30px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .flight-date-prompt .icon { font-size: 28px; opacity: 0.6; }
+
+    /* Custom calendar dropdown */
+    .flight-calendar-panel {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px 12px;
+      margin-bottom: 10px;
+    }
+    .cal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .cal-title { font-size: 13px; font-weight: 700; }
+    .cal-nav {
+      width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      font-size: 16px;
+      color: var(--text);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cal-nav:active { background: var(--surface3); }
+    .cal-dow-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 2px;
+    }
+    .cal-dow {
+      text-align: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      padding: 4px 0;
+    }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+    .cal-cell {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12.5px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      color: var(--text);
+    }
+    .cal-cell.empty { cursor: default; }
+    .cal-cell:not(.empty):not(.disabled):active { background: var(--surface3); }
+    .cal-cell.disabled { color: var(--muted); opacity: 0.3; cursor: default; }
+    .cal-cell.today { color: var(--accent); }
+    .cal-cell.selected { background: var(--accent); color: #fff; }
+
+    .flight-class-tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .flight-class-tabs::-webkit-scrollbar { display: none; }
+    .flight-class-tab {
+      flex-shrink: 0;
+      padding: 7px 13px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--surface2);
+      border: 1.5px solid transparent;
+      color: var(--muted);
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.18s;
+    }
+    .flight-class-tab.active {
+      color: #fff;
+      border-color: #00BCD4;
+      background: rgba(0,188,212,0.18);
+    }
+
+    /* ── Airline results list ────────────────────────────────── */
+    .airline-list-heading {
+      padding: 12px 16px 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    .airline-list {
+      padding: 4px 16px 4px;
+    }
+    .airline-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .airline-row:last-child { border-bottom: none; }
+    .airline-logo {
+      width: 34px; height: 34px;
+      border-radius: 9px;
+      background: var(--surface2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      flex-shrink: 0;
+    }
+    .airline-info { flex: 1; min-width: 0; }
+    .airline-name {
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .airline-badge {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border-radius: 4px;
+      padding: 2px 6px;
+    }
+    .airline-badge.cheapest { background: rgba(76,175,80,0.18); color: #4CAF50; }
+    .airline-badge.fastest  { background: rgba(0,188,212,0.18); color: #00BCD4; }
+    .airline-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .airline-price-col { text-align: right; flex-shrink: 0; }
+    .airline-price { font-size: 14px; font-weight: 800; color: #4CAF50; }
+    .airline-book-btn {
+      margin-top: 3px;
+      background: var(--accent-lo);
+      color: var(--accent);
+      border: none;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .airline-book-btn:active { opacity: 0.7; }
+
+    /* ── Full-page date picker ───────────────────────────────── */
+    #date-picker-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: flex-end;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    #date-picker-overlay.open { display: flex; }
+
+    #date-picker-card {
+      width: 100%;
+      background: var(--surface);
+      border-radius: 24px 24px 0 0;
+      border-top: 1px solid var(--border);
+      padding: 16px 20px;
+      padding-bottom: calc(24px + var(--safe-b));
+      max-height: 82vh;
+      overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform 0.36s cubic-bezier(0.32,0.72,0,1);
+    }
+    #date-picker-overlay.open #date-picker-card { transform: translateY(0); }
+
+    #date-picker-handle {
+      width: 36px; height: 4px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+
+    #date-picker-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    #date-picker-title { font-size: 17px; font-weight: 700; }
+    #date-picker-close {
+      width: 30px; height: 30px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%;
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #date-picker-close:active { background: var(--surface3); }
+
+    #date-picker-quick {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      margin-bottom: 20px;
+      padding-bottom: 2px;
+    }
+    #date-picker-quick::-webkit-scrollbar { display: none; }
+    .date-quick-chip {
+      flex-shrink: 0;
+      padding: 8px 14px;
+      border-radius: 100px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--surface2);
+      border: 1.5px solid transparent;
+      color: var(--muted);
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.18s;
+      white-space: nowrap;
+    }
+    .date-quick-chip.active {
+      color: #fff;
+      border-color: var(--accent);
+      background: var(--accent-lo);
+    }
+
+    /* Bigger calendar grid used inside the full page (reuses .cal-* classes) */
+    #date-picker-cal .cal-title { font-size: 16px; }
+    #date-picker-cal .cal-nav { width: 32px; height: 32px; font-size: 19px; }
+    #date-picker-cal .cal-dow { font-size: 11px; padding: 6px 0; }
+    #date-picker-cal .cal-cell { font-size: 14px; border-radius: 10px; }
+    #date-picker-cal .cal-grid { gap: 4px; }
+
+    /* ── Flight card ─────────────────────────────────────────── */
+    .flight-unavailable {
+      padding: 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .flight-airports {
+      border-top: 1px solid var(--border);
+    }
+
+    .flight-airport-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .flight-airport-row:last-child { border-bottom: none; }
+
+    .airport-role {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      width: 36px;
+      flex-shrink: 0;
+    }
+    .airport-role.dep { color: #4CAF50; }
+    .airport-role.arr { color: #2196F3; }
+
+    .airport-iata {
+      font-size: 18px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.04em;
+      width: 44px;
+      flex-shrink: 0;
+    }
+
+    .airport-info { flex: 1; min-width: 0; }
+    .airport-name {
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .airport-dist { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .flight-price-col { text-align: right; flex-shrink: 0; }
+    .flight-price-val {
+      font-size: 17px;
+      font-weight: 800;
+      color: #4CAF50;
+    }
+    .flight-price-label { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+    .flight-route-divider {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .flight-route-line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, #4CAF50, #2196F3);
+      opacity: 0.4;
+    }
+    .flight-route-icon { font-size: 14px; }
+    .flight-route-dur { font-size: 11px; color: var(--muted); font-weight: 600; }
+
+    .flight-book-btns {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px 14px;
+    }
+    .flight-book-btn {
+      flex: 1;
+      padding: 11px 8px;
+      border-radius: 10px;
+      border: none;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: opacity 0.15s;
+    }
+    .flight-book-btn:active { opacity: 0.75; }
+    .btn-skyscanner { background: #0770e3; color: #fff; }
+    .btn-google    { background: #fff; color: #202124; border: 1px solid rgba(0,0,0,0.15); }
+
+    /* distance bar */
+    .dist-bar {
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 2px;
+      margin: 0 16px 14px;
+      overflow: hidden;
+    }
+    .dist-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
+    }
